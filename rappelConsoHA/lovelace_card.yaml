@@ -1,0 +1,21 @@
+# Affichage Lovelace (Carte Markdown)
+# Copiez ce code dans une carte "Markdown" de votre tableau de bord Home Assistant.
+
+type: markdown
+title: 🚨 Rappels Produits
+content: >
+  {% set items = state_attr('sensor.rappel_conso_alerte', 'results') %}
+  {% if items %}
+    {% for item in items %}
+    ### {{ item.libelle }}
+    **Marque :** {{ item.nom_de_la_marque_du_produit or 'N/A' }}
+    **Motif :** {{ item.motif_du_rappel }}
+    **Date :** {{ item.date_de_publication[:10] }}
+    
+    [🔗 Voir la fiche officielle]({{ item.lien_vers_la_fiche_rappel }})
+    
+    ---
+    {% endfor %}
+  {% else %}
+    ✅ Aucun rappel récent pour vos mots-clés.
+  {% endif %}

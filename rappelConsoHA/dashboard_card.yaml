@@ -1,0 +1,137 @@
+type: vertical-stack
+cards:
+  # ----------------------------------------------------------------------------
+  # 1. EN-TÊTE (Style Mushroom)
+  # Affiche un bouclier vert si tout va bien, ou une alerte rouge si rappels.
+  # Nécessite l'installation de "Mushroom" via HACS.
+  # ----------------------------------------------------------------------------
+  - type: custom:mushroom-template-card
+    primary: >-
+      {% if states('sensor.rappel_conso_cible') | int > 0 %}
+        ALERTE : {{ states('sensor.rappel_conso_cible') }} RAPPEL(S)
+      {% else %}
+        Rappel Conso : RAS
+      {% endif %}
+    secondary: >-
+      {% if states('sensor.rappel_conso_cible') | int > 0 %}
+        Produits dangereux détectés !
+      {% else %}
+        Surveillance active ({{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | length }} mots-clés)
+      {% endif %}
+    icon: >-
+      {% if states('sensor.rappel_conso_cible') | int > 0 %}
+        mdi:alert-decagram
+      {% else %}
+        mdi:shield-check
+      {% endif %}
+    icon_color: >-
+      {% if states('sensor.rappel_conso_cible') | int > 0 %}
+        red
+      {% else %}
+        green
+      {% endif %}
+    tap_action:
+      action: more-info
+      entity: sensor.rappel_conso_cible
+
+  # ----------------------------------------------------------------------------
+  # 2. LISTE VISUELLE (Photos + Risques)
+  # S'affiche uniquement s'il y a des rappels en cours.
+  # Utilise du CSS standard (fonctionne sans plugin supplémentaire).
+  # ----------------------------------------------------------------------------
+  - type: conditional
+    conditions:
+      - entity: sensor.rappel_conso_cible
+        state_not: "0"
+        state_not: "unavailable"
+    card:
+      type: markdown
+      content: >
+        {% set data = state_attr('sensor.rappel_conso_cible', 'data') %}
+        <style>
+          .rappel-card {
+            background-color: var(--card-background-color);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+            border: 1px solid var(--divider-color);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+          }
+          .rappel-card:active {
+            transform: scale(0.98);
+          }
+          .rappel-img {
+            width: 70px;
+            height: 70px;
+            border-radius: 8px;
+            object-fit: cover;
+            background-color: white;
+            flex-shrink: 0;
+          }
+          .rappel-content {
+            flex: 1;
+            min-width: 0; /* Important pour le text-overflow */
+          }
+          .rappel-title {
+            font-weight: bold;
+            font-size: 1.05em;
+            color: var(--primary-text-color);
+            margin-bottom: 4px;
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .rappel-brand {
+            font-size: 0.85em;
+            color: var(--secondary-text-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+          }
+          .rappel-risk {
+            display: inline-block;
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 0.8em;
+            font-weight: bold;
+            margin-top: 6px;
+          }
+          a { text-decoration: none !important; color: inherit !important; display: block; }
+        </style>
+
+        {% if data %}
+          {% for item in data %}
+          <a href="{{ item.url }}" target="_blank">
+            <div class="rappel-card">
+              <!-- Image du produit (ou icône par défaut si absente) -->
+              {% if item.image_url %}
+                <img src="{{ item.image_url }}" class="rappel-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+                <div style="display:none;width:70px;height:70px;border-radius:8px;background:#f0f0f0;align-items:center;justify-content:center;">
+                  <ha-icon icon="mdi:image-off" style="color:#999"></ha-icon>
+                </div>
+              {% else %}
+                <div class="rappel-img" style="display:flex;align-items:center;justify-content:center;background:#f0f0f0;">
+                   <ha-icon icon="mdi:alert-circle-outline" style="color:#c62828"></ha-icon>
+                </div>
+              {% endif %}
+              
+              <!-- Textes -->
+              <div class="rappel-content">
+                <span class="rappel-brand">{{ item.marque or 'Marque Inconnue' }}</span>
+                <span class="rappel-title">{{ item.titre }}</span>
+                <div class="rappel-risk">⚠️ {{ item.motif | truncate(40, True, '...') }}</div>
+              </div>
+              
+              <!-- Flèche -->
+              <ha-icon icon="mdi:chevron-right" style="color:var(--secondary-text-color);"></ha-icon>
+            </div>
+          </a>
+          {% endfor %}
+        {% endif %}

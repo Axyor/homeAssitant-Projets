@@ -1,0 +1,41 @@
+# ------------------------------------------------------------------------------
+# 1. SENSOR (À ajouter dans configuration.yaml ou sensors.yaml)
+# ------------------------------------------------------------------------------
+command_line:
+  - sensor:
+      name: Rappel Conso Ciblé
+      # Ajustez le chemin vers votre script et votre fichier txt
+      command: "python3 /config/workspace/rappelConsoHA/rappel_script.py /config/workspace/rappelConsoHA/mots_cles.txt"
+      # Format JSON
+      value_template: "{{ value_json.count }}"
+      json_attributes:
+        - data
+        - keywords_used
+        - last_update
+      # Fréquence : toutes les 14400 secondes = 4 heures
+      scan_interval: 14400
+      # Timeout un peu plus long car script externe
+      command_timeout: 30
+
+# ------------------------------------------------------------------------------
+# 2. AUTOMATISATION (À ajouter dans automations.yaml)
+# ------------------------------------------------------------------------------
+# Cette automatisation se déclenche si le nombre de rappels change et est > 0
+# ------------------------------------------------------------------------------
+# - alias: "Alerte Rappel Conso"
+#   trigger:
+#     - platform: state
+#       entity_id: sensor.rappel_conso_cible
+#   condition:
+#     - condition: template
+#       value_template: "{{ trigger.to_state.state | int > 0 }}"
+#     # Optionnel: ne pas notifier si le nombre diminue (cas où un rappel sort de la fenetre des 14 jours)
+#     - condition: template
+#       value_template: "{{ trigger.to_state.state | int > trigger.from_state.state | int }}"
+#   action:
+#     - service: notify.mobile_app_votre_telephone
+#       data:
+#         title: "🚨 Nouveau Rappel Produit !"
+#         message: "Attention, {{ states('sensor.rappel_conso_cible') }} produits correspondent à vos alertes ({{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | join(', ') }})."
+#         data:
+#           url: "/lovelace/rappels" # Lien vers votre tableau de bord
