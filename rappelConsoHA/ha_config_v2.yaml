@@ -5,37 +5,66 @@ command_line:
   - sensor:
       name: Rappel Conso Ciblé
       # Ajustez le chemin vers votre script et votre fichier txt
-      command: "python3 /config/workspace/rappelConsoHA/rappel_script.py /config/workspace/rappelConsoHA/mots_cles.txt"
+      command: "python3 /config/rappelConsoHA/rappel_script.py /config/rappelConsoHA/mots_cles.txt"
       # Format JSON
       value_template: "{{ value_json.count }}"
       json_attributes:
         - data
+        - nouveaux
+        - new_count
         - keywords_used
         - last_update
+        - error
       # Fréquence : toutes les 14400 secondes = 4 heures
       scan_interval: 14400
       # Timeout un peu plus long car script externe
       command_timeout: 30
 
 # ------------------------------------------------------------------------------
-# 2. AUTOMATISATION (À ajouter dans automations.yaml)
+# 2. TEMPLATE SENSOR (Optionnel - compteur de nouveaux rappels)
+# Permet d'avoir un sensor dédié pour déclencher les notifications
+# uniquement sur les NOUVEAUX rappels (pas encore vus).
 # ------------------------------------------------------------------------------
-# Cette automatisation se déclenche si le nombre de rappels change et est > 0
+template:
+  - sensor:
+      - name: "Rappel Conso Nouveaux"
+        state: "{{ state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) }}"
+        icon: >-
+          {% if states('sensor.rappel_conso_nouveaux') | int > 0 %}
+            mdi:alert-decagram
+          {% else %}
+            mdi:shield-check
+          {% endif %}
+        attributes:
+          nouveaux: "{{ state_attr('sensor.rappel_conso_cible', 'nouveaux') }}"
+
 # ------------------------------------------------------------------------------
-# - alias: "Alerte Rappel Conso"
-#   trigger:
-#     - platform: state
-#       entity_id: sensor.rappel_conso_cible
-#   condition:
-#     - condition: template
-#       value_template: "{{ trigger.to_state.state | int > 0 }}"
-#     # Optionnel: ne pas notifier si le nombre diminue (cas où un rappel sort de la fenetre des 14 jours)
-#     - condition: template
-#       value_template: "{{ trigger.to_state.state | int > trigger.from_state.state | int }}"
-#   action:
-#     - service: notify.mobile_app_votre_telephone
-#       data:
-#         title: "🚨 Nouveau Rappel Produit !"
-#         message: "Attention, {{ states('sensor.rappel_conso_cible') }} produits correspondent à vos alertes ({{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | join(', ') }})."
-#         data:
-#           url: "/lovelace/rappels" # Lien vers votre tableau de bord
+# 3. AUTOMATISATION (À ajouter dans automations.yaml)
+# Notifie uniquement quand de NOUVEAUX rappels apparaissent.
+# Le cache du script évite les notifications en double.
+# ------------------------------------------------------------------------------
+automation:
+  - alias: "[Sécurité Famille] Alerte Rappel Produit"
+    trigger:
+      - platform: state
+        entity_id: sensor.rappel_conso_cible
+    condition:
+      # On ne notifie que si de nouveaux rappels ont été détectés
+      - condition: template
+        value_template: "{{ state_attr('sensor.rappel_conso_cible', 'new_count') | int > 0 }}"
+    action:
+      - service: notify.mobile_app_VOTRE_TELEPHONE # <--- À CHANGER
+        data:
+          title: "⚠️ {{ state_attr('sensor.rappel_conso_cible', 'new_count') }} nouveau(x) rappel(s)"
+          message: >
+            {% for item in state_attr('sensor.rappel_conso_cible', 'nouveaux') %}
+            • {{ item.marque | default('?') | upper }} — {{ item.titre | truncate(50) }}
+            {% endfor %}
+          data:
+            clickAction: "/lovelace/rappels"
+            # Image du premier rappel (si disponible)
+            image: >-
+              {% set items = state_attr('sensor.rappel_conso_cible', 'nouveaux') %}
+              {% if items and items[0].image_url %}
+                {{ items[0].image_url }}
+              {% endif %}

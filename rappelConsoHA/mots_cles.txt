@@ -1,6 +1,11 @@
+# Distributeurs
+lidl
+
+# Marques bébé
+guigoz
+envia
+
+# Alimentaire
 fromage
-vélo
-jouet
 saumon
-pile
-usb
+lardons

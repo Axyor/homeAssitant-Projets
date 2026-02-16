@@ -13,8 +13,11 @@ cards:
         Rappel Conso : RAS
       {% endif %}
     secondary: >-
-      {% if states('sensor.rappel_conso_cible') | int > 0 %}
-        Produits dangereux détectés !
+      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
+      {% if new > 0 %}
+        🆕 {{ new }} nouveau(x) depuis le dernier scan
+      {% elif states('sensor.rappel_conso_cible') | int > 0 %}
+        Produits surveillés détectés
       {% else %}
         Surveillance active ({{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | length }} mots-clés)
       {% endif %}
@@ -25,24 +28,47 @@ cards:
         mdi:shield-check
       {% endif %}
     icon_color: >-
-      {% if states('sensor.rappel_conso_cible') | int > 0 %}
+      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
+      {% if new > 0 %}
         red
+      {% elif states('sensor.rappel_conso_cible') | int > 0 %}
+        orange
       {% else %}
         green
       {% endif %}
+    badge_icon: >-
+      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
+      {% if new > 0 %}
+        mdi:numeric-{{ new }}
+      {% endif %}
+    badge_color: red
     tap_action:
       action: more-info
       entity: sensor.rappel_conso_cible
 
   # ----------------------------------------------------------------------------
-  # 2. LISTE VISUELLE (Photos + Risques)
+  # 2. BARRE D'INFO (Dernière mise à jour + mots-clés actifs)
+  # ----------------------------------------------------------------------------
+  - type: custom:mushroom-template-card
+    primary: ""
+    secondary: >-
+      🔍 {{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | join(', ') }}
+      — Mis à jour : {{ state_attr('sensor.rappel_conso_cible', 'last_update')[:16] | default('...') | replace('T', ' à ') }}
+    icon: mdi:magnify
+    icon_color: grey
+    card_mod:
+      style: |
+        ha-card { --ha-card-border-width: 0; padding: 0; margin-top: -10px; }
+
+  # ----------------------------------------------------------------------------
+  # 3. LISTE VISUELLE (Photos + Risques + Distributeur)
   # S'affiche uniquement s'il y a des rappels en cours.
-  # Utilise du CSS standard (fonctionne sans plugin supplémentaire).
   # ----------------------------------------------------------------------------
   - type: conditional
     conditions:
       - entity: sensor.rappel_conso_cible
         state_not: "0"
+      - entity: sensor.rappel_conso_cible
         state_not: "unavailable"
     card:
       type: markdown
@@ -74,7 +100,7 @@ cards:
           }
           .rappel-content {
             flex: 1;
-            min-width: 0; /* Important pour le text-overflow */
+            min-width: 0;
           }
           .rappel-title {
             font-weight: bold;
@@ -103,6 +129,29 @@ cards:
             font-weight: bold;
             margin-top: 6px;
           }
+          .rappel-distrib {
+            display: inline-block;
+            background-color: #e3f2fd;
+            color: #1565c0;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-size: 0.75em;
+            margin-top: 4px;
+            margin-left: 4px;
+          }
+          .rappel-conduite {
+            font-size: 0.8em;
+            color: var(--secondary-text-color);
+            margin-top: 4px;
+            display: block;
+            font-style: italic;
+          }
+          .rappel-date {
+            font-size: 0.75em;
+            color: var(--disabled-text-color);
+            display: block;
+            margin-top: 2px;
+          }
           a { text-decoration: none !important; color: inherit !important; display: block; }
         </style>
 
@@ -110,7 +159,7 @@ cards:
           {% for item in data %}
           <a href="{{ item.url }}" target="_blank">
             <div class="rappel-card">
-              <!-- Image du produit (ou icône par défaut si absente) -->
+              <!-- Image du produit -->
               {% if item.image_url %}
                 <img src="{{ item.image_url }}" class="rappel-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
                 <div style="display:none;width:70px;height:70px;border-radius:8px;background:#f0f0f0;align-items:center;justify-content:center;">
@@ -127,6 +176,13 @@ cards:
                 <span class="rappel-brand">{{ item.marque or 'Marque Inconnue' }}</span>
                 <span class="rappel-title">{{ item.titre }}</span>
                 <div class="rappel-risk">⚠️ {{ item.motif | truncate(40, True, '...') }}</div>
+                {% if item.distributeurs %}
+                  <span class="rappel-distrib">🏪 {{ item.distributeurs | truncate(30, True, '...') }}</span>
+                {% endif %}
+                {% if item.conduite %}
+                  <span class="rappel-conduite">→ {{ item.conduite | replace('|', ' · ') | truncate(60, True, '...') }}</span>
+                {% endif %}
+                <span class="rappel-date">📅 {{ item.date[:10] if item.date else 'N/A' }}</span>
               </div>
               
               <!-- Flèche -->
@@ -135,3 +191,17 @@ cards:
           </a>
           {% endfor %}
         {% endif %}
+
+  # ----------------------------------------------------------------------------
+  # 4. MESSAGE QUAND PAS DE RAPPELS
+  # ----------------------------------------------------------------------------
+  - type: conditional
+    conditions:
+      - entity: sensor.rappel_conso_cible
+        state: "0"
+    card:
+      type: custom:mushroom-template-card
+      primary: "✅ Aucun rappel"
+      secondary: "Aucun produit correspondant à vos critères sur les 14 derniers jours."
+      icon: mdi:check-circle
+      icon_color: green
