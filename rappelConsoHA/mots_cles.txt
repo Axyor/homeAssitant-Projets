@@ -1,11 +1,31 @@
-# Distributeurs
+[distributeurs]
 lidl
+auchan
+chronodrive
 
-# Marques bébé
+[surveillance]
+# Produits critiques (non filtrés par distributeur)
 guigoz
-envia
+compote
+céréales bébé
 
-# Alimentaire
+[produits]
+# Fromages (E.coli, Listeria)
 fromage
+envia
+crème fraiche
+
+# Poissons (Listeria)
 saumon
+saumon fumé
+
+# Viandes & charcuterie (Salmonella, Listeria)
+steak haché
 lardons
+volaille
+poulet
+jambon
+chorizo
+
+# Autres
+oeuf

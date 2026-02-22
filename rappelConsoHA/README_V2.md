@@ -4,7 +4,9 @@ Surveille les rappels de produits dangereux (santé alimentaire, sécurité enfa
 
 ## ✨ Fonctionnalités
 
-- 🔍 **Recherche multi-champs** — cherche dans le libellé, la sous-catégorie ET la marque
+- 🔍 **Recherche multi-champs** — cherche dans le libellé, la sous-catégorie, la marque ET le distributeur
+- 🏪 **Filtrage par distributeur** — ne remonte que les rappels de vos magasins habituels
+- 🛡️ **Mode surveillance** — produits critiques (bébé, santé) surveillés chez TOUS les distributeurs
 - 🆕 **Détection des nouveaux rappels** — cache intelligent, ne notifie que les nouveaux
 - 📱 **Notifications enrichies** — nom du produit, marque, motif + image
 - 🎨 **Dashboard Mushroom** — images, distributeurs, risques, conduite à tenir
@@ -14,7 +16,7 @@ Surveille les rappels de produits dangereux (santé alimentaire, sécurité enfa
 ## 📋 Pré-requis
 
 - Accès aux fichiers de votre Home Assistant (Samba, File Editor ou VS Code)
-- **Mushroom Cards** installé via HACS
+- **Mushroom Cards** installé via HACS (seule dépendance frontend requise, pas de `card-mod`)
 - Python 3 (inclus par défaut dans HA OS/Container)
 
 ---
@@ -43,6 +45,8 @@ command_line:
         - nouveaux
         - new_count
         - keywords_used
+        - distributeurs_used
+        - surveillance_used
         - last_update
         - error
       scan_interval: 14400 # Toutes les 4 heures
@@ -72,20 +76,42 @@ _Ajustez les chemins si votre dossier est placé ailleurs._
 
 ## 📋 Étape 3 : Mots-clés
 
-Éditez `mots_cles.txt` (un par ligne, les lignes `#` sont ignorées) :
+Éditez `mots_cles.txt` avec **3 sections** :
 
 ```text
-# Alimentaire
+[distributeurs]
+# Magasins où vous faites vos courses
+lidl
+auchan
+chronodrive
+
+[surveillance]
+# Produits critiques : surveillés chez TOUS les distributeurs
+guigoz
+compote
+céréales bébé
+
+[produits]
+# Produits courants : filtrés par vos distributeurs uniquement
 fromage
 saumon
-# Enfants
-jouet
-# Électronique
-pile
-usb
+saumon fumé
+lardons
+jambon
+oeuf
 ```
 
-Le script cherche ces mots dans le **libellé**, la **sous-catégorie** et la **marque** des produits rappelés.
+### Logique de filtrage
+
+| Section           | Filtrage distributeur | Cas d'usage                         |
+| ----------------- | :-------------------: | ----------------------------------- |
+| `[distributeurs]` |           —           | Vos magasins habituels              |
+| `[surveillance]`  |     ❌ Non filtré     | Produits critiques (bébé, allergie) |
+| `[produits]`      |     ✅ Filtré AND     | Produits courants                   |
+
+- **`[produits]`** → rappels remontés **uniquement** si le distributeur est dans votre liste
+- **`[surveillance]`** → rappels remontés **quel que soit** le distributeur
+- **Rétro-compatible** : un fichier sans sections `[...]` fonctionne comme avant (tout dans `[produits]`, pas de filtrage distributeur)
 
 ---
 
