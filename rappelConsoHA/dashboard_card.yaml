@@ -1,207 +1,92 @@
 type: vertical-stack
 cards:
-  # ----------------------------------------------------------------------------
-  # 1. EN-TÊTE (Style Mushroom)
-  # Affiche un bouclier vert si tout va bien, ou une alerte rouge si rappels.
-  # Nécessite l'installation de "Mushroom" via HACS.
-  # ----------------------------------------------------------------------------
   - type: custom:mushroom-template-card
+    entity: sensor.rappel_conso_cible
     primary: >-
-      {% if states('sensor.rappel_conso_cible') | int > 0 %}
-        ALERTE : {{ states('sensor.rappel_conso_cible') }} RAPPEL(S)
-      {% else %}
-        Rappel Conso : RAS
-      {% endif %}
+      {% set count = states('sensor.rappel_conso_cible') | int(0) %} {% if count
+      > 0 %}ALERTE : {{ count }} RAPPEL(S){% else %}Rappel Conso : RAS{% endif
+      %}
     secondary: >-
-      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
-      {% if new > 0 %}
-        🆕 {{ new }} nouveau(x) depuis le dernier scan
-      {% elif states('sensor.rappel_conso_cible') | int > 0 %}
-        Produits surveillés détectés
-      {% else %}
-        Surveillance active ({{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | length }} mots-clés)
-      {% endif %}
+      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') |
+      default(0) | int %} {% if new > 0 %}🆕 {{ new }} nouveau(x) ! {% elif
+      states('sensor.rappel_conso_cible') | int(0) > 0 %}Surveillance active {%
+      else %}Aucun rappel {% endif %}
     icon: >-
-      {% if states('sensor.rappel_conso_cible') | int > 0 %}
-        mdi:alert-decagram
-      {% else %}
-        mdi:shield-check
-      {% endif %}
-    icon_color: >-
-      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
-      {% if new > 0 %}
-        red
-      {% elif states('sensor.rappel_conso_cible') | int > 0 %}
-        orange
-      {% else %}
-        green
-      {% endif %}
-    badge_icon: >-
-      {% set new = state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) | int %}
-      {% if new > 0 %}
-        mdi:numeric-{{ new }}
-      {% endif %}
-    badge_color: red
+      {% if states('sensor.rappel_conso_cible') | int(0) > 0
+      %}mdi:alert-decagram {% else %}mdi:shield-check {% endif %}
     tap_action:
       action: more-info
-      entity: sensor.rappel_conso_cible
-
-  # ----------------------------------------------------------------------------
-  # 2. BARRE D'INFO (Dernière mise à jour + mots-clés actifs)
-  # ----------------------------------------------------------------------------
-  - type: custom:mushroom-template-card
-    primary: ""
-    secondary: >-
-      🔍 {{ state_attr('sensor.rappel_conso_cible', 'keywords_used') | join(', ') }}
-      — Mis à jour : {{ state_attr('sensor.rappel_conso_cible', 'last_update')[:16] | default('...') | replace('T', ' à ') }}
-    icon: mdi:magnify
-    icon_color: grey
-    card_mod:
-      style: |
-        ha-card { --ha-card-border-width: 0; padding: 0; margin-top: -10px; }
-
-  # ----------------------------------------------------------------------------
-  # 3. LISTE VISUELLE (Photos + Risques + Distributeur)
-  # S'affiche uniquement s'il y a des rappels en cours.
-  # ----------------------------------------------------------------------------
-  - type: conditional
-    conditions:
-      - entity: sensor.rappel_conso_cible
-        state_not: "0"
-      - entity: sensor.rappel_conso_cible
-        state_not: "unavailable"
-    card:
-      type: markdown
-      content: >
-        {% set data = state_attr('sensor.rappel_conso_cible', 'data') %}
-        <style>
-          .rappel-card {
-            background-color: var(--card-background-color);
-            border-radius: 12px;
-            padding: 12px;
-            margin-bottom: 10px;
-            border: 1px solid var(--divider-color);
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            transition: transform 0.2s;
-          }
-          .rappel-card:active {
-            transform: scale(0.98);
-          }
-          .rappel-img {
-            width: 70px;
-            height: 70px;
-            border-radius: 8px;
-            object-fit: cover;
-            background-color: white;
-            flex-shrink: 0;
-          }
-          .rappel-content {
-            flex: 1;
-            min-width: 0;
-          }
-          .rappel-title {
-            font-weight: bold;
-            font-size: 1.05em;
-            color: var(--primary-text-color);
-            margin-bottom: 4px;
-            display: block;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-          .rappel-brand {
-            font-size: 0.85em;
-            color: var(--secondary-text-color);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            display: block;
-          }
-          .rappel-risk {
-            display: inline-block;
-            background-color: #ffebee;
-            color: #c62828;
-            padding: 4px 8px;
-            border-radius: 6px;
-            font-size: 0.8em;
-            font-weight: bold;
-            margin-top: 6px;
-          }
-          .rappel-distrib {
-            display: inline-block;
-            background-color: #e3f2fd;
-            color: #1565c0;
-            padding: 3px 6px;
-            border-radius: 4px;
-            font-size: 0.75em;
-            margin-top: 4px;
-            margin-left: 4px;
-          }
-          .rappel-conduite {
-            font-size: 0.8em;
-            color: var(--secondary-text-color);
-            margin-top: 4px;
-            display: block;
-            font-style: italic;
-          }
-          .rappel-date {
-            font-size: 0.75em;
-            color: var(--disabled-text-color);
-            display: block;
-            margin-top: 2px;
-          }
-          a { text-decoration: none !important; color: inherit !important; display: block; }
-        </style>
-
-        {% if data %}
-          {% for item in data %}
-          <a href="{{ item.url }}" target="_blank">
-            <div class="rappel-card">
-              <!-- Image du produit -->
-              {% if item.image_url %}
-                <img src="{{ item.image_url }}" class="rappel-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-                <div style="display:none;width:70px;height:70px;border-radius:8px;background:#f0f0f0;align-items:center;justify-content:center;">
-                  <ha-icon icon="mdi:image-off" style="color:#999"></ha-icon>
-                </div>
-              {% else %}
-                <div class="rappel-img" style="display:flex;align-items:center;justify-content:center;background:#f0f0f0;">
-                   <ha-icon icon="mdi:alert-circle-outline" style="color:#c62828"></ha-icon>
-                </div>
-              {% endif %}
-              
-              <!-- Textes -->
-              <div class="rappel-content">
-                <span class="rappel-brand">{{ item.marque or 'Marque Inconnue' }}</span>
-                <span class="rappel-title">{{ item.titre }}</span>
-                <div class="rappel-risk">⚠️ {{ item.motif | truncate(40, True, '...') }}</div>
-                {% if item.distributeurs %}
-                  <span class="rappel-distrib">🏪 {{ item.distributeurs | truncate(30, True, '...') }}</span>
-                {% endif %}
-                {% if item.conduite %}
-                  <span class="rappel-conduite">→ {{ item.conduite | replace('|', ' · ') | truncate(60, True, '...') }}</span>
-                {% endif %}
-                <span class="rappel-date">📅 {{ item.date[:10] if item.date else 'N/A' }}</span>
-              </div>
-              
-              <!-- Flèche -->
-              <ha-icon icon="mdi:chevron-right" style="color:var(--secondary-text-color);"></ha-icon>
-            </div>
-          </a>
-          {% endfor %}
-        {% endif %}
-
-  # ----------------------------------------------------------------------------
-  # 4. MESSAGE QUAND PAS DE RAPPELS
-  # ----------------------------------------------------------------------------
-  - type: conditional
-    conditions:
-      - entity: sensor.rappel_conso_cible
-        state: "0"
-    card:
-      type: custom:mushroom-template-card
-      primary: "✅ Aucun rappel"
-      secondary: "Aucun produit correspondant à vos critères sur les 14 derniers jours."
-      icon: mdi:check-circle
-      icon_color: green
+    color: >-
+      {% if state_attr('sensor.rappel_conso_cible', 'new_count') | default(0) |
+      int > 0 %}red {% elif states('sensor.rappel_conso_cible') | int(0) > 0
+      %}orange {% else %}green {% endif %}
+    features_position: bottom
+  - type: custom:mushroom-chips-card
+    chips:
+      - type: template
+        entity: sensor.rappel_conso_cible
+        icon: mdi:magnify
+        icon_color: grey
+        content: >-
+          {% set kw = state_attr('sensor.rappel_conso_cible', 'keywords_used')
+          | default([], true) %} {% if kw is iterable and kw | length > 0 %}{{
+          kw | length }} mots-clés{% else %}aucun{% endif %}
+        tap_action:
+          action: more-info
+      - type: template
+        entity: sensor.rappel_conso_cible
+        icon: mdi:clock-outline
+        icon_color: grey
+        content: >-
+          {% set lu = state_attr('sensor.rappel_conso_cible', 'last_update') %}
+          {{ as_timestamp(lu, 0) | timestamp_custom('%d/%m %H:%M') if lu else
+          'Jamais' }}
+        tap_action:
+          action: more-info
+  - type: markdown
+    content: >-
+      {% set count = states('sensor.rappel_conso_cible') | int(0) %} {% if count
+      > 0 %} {% set data = state_attr('sensor.rappel_conso_cible', 'data') %} {%
+      if data %} {% set ns = namespace(seen=[]) %}
+      <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px;">
+      {% for item in data %} {% if
+      item.numero_fiche not in ns.seen %} {% set ns.seen = ns.seen +
+      [item.numero_fiche] %}
+      <a href="{{ item.url | default('#', true) }}"
+      target="_blank" style="text-decoration: none; color:
+      var(--primary-text-color); display: block;">
+      <div style="display: flex;
+      align-items: flex-start; gap: 12px; padding: 12px;
+      border-radius: 12px; border: 1px solid var(--divider-color);
+      background: var(--card-background-color);
+      transition: transform 0.15s ease, box-shadow 0.15s ease; height: 100%; box-sizing: border-box;">
+      {% if item.image_url %}
+      <img src="{{ item.image_url }}" style="width: 75px;
+      height: 75px; min-width: 75px; min-height: 75px; max-width: 75px;
+      max-height: 75px; object-fit: cover; overflow: hidden; border-radius: 6px;
+      background: white; padding: 2px; flex-shrink: 0; border: 1px solid
+      var(--divider-color);"> {%
+      else %} <div style="width: 75px; height: 75px; border-radius: 6px;
+      background: rgba(150,150,150,0.1); display: flex; align-items: center;
+      justify-content: center; flex-shrink: 0; border: 1px solid
+      var(--divider-color);"> <ha-icon icon="mdi:image-off-outline"
+      style="color: var(--secondary-text-color);"></ha-icon> </div> {% endif %}
+      <div style="flex: 1; min-width: 0;"> <div style="font-weight: 600;
+      font-size: 1.05em; line-height: 1.2; margin-bottom: 6px; display:
+      -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+      overflow: hidden; text-overflow: ellipsis;"> {{ item.titre | replace('•',
+      '') | replace('\t', ' ') | trim | capitalize }} </div> <div
+      style="font-size: 0.9em; line-height: 1.3;"> <span style="color:
+      var(--error-color); font-weight: bold;">{{ item.marque | default('MARQUE
+      INCONNUE', true) | upper }}</span><br/> <span style="color:
+      var(--secondary-text-color);">⚠️ {{ item.motif | default('Motif non
+      précisé', true) | truncate(90, true) }}</span> </div> </div> </div> </a>
+      {% endif %} {% endfor %}
+      </div>
+      {% endif %} {% else %} <div style="text-align:
+      center; padding: 24px 0;"> <ha-icon icon="mdi:shield-check"
+      style="--mdc-icon-size: 48px; color: var(--success-color);"></ha-icon>
+      <div style="font-size: 1.2em; font-weight: bold; margin-top: 12px; color:
+      var(--primary-text-color);">Aucun rappel détecté</div> <div style="color:
+      var(--secondary-text-color); font-size: 0.95em; margin-top: 4px;">Vos
+      produits surveillés semblent sûrs pour le moment.</div> </div> {% endif %}
