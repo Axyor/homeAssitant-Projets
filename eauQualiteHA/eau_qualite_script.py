@@ -5,6 +5,7 @@ import json
 import datetime
 import argparse
 import logging
+from logging.handlers import RotatingFileHandler
 import os
 
 BASE_URL = "https://hubeau.eaufrance.fr/api/v1/qualite_eau_potable/resultats_dis"
@@ -14,13 +15,15 @@ def setup_logging():
     script_dir = os.path.dirname(os.path.abspath(__file__))
     log_file = os.path.join(script_dir, "eau_qualite.log")
     
+    # Use RotatingFileHandler to prevent the log file from growing indefinitely
+    # maxBytes=1048576 (1 MB), backupCount=1 keeps one old log file
+    file_handler = RotatingFileHandler(log_file, maxBytes=1048576, backupCount=1, encoding='utf-8')
+    stream_handler = logging.StreamHandler()
+    
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s [%(levelname)s] %(message)s",
-        handlers=[
-            logging.FileHandler(log_file, encoding='utf-8'),
-            logging.StreamHandler()
-        ]
+        handlers=[file_handler, stream_handler]
     )
 
 def fetch_water_quality(commune_code):
