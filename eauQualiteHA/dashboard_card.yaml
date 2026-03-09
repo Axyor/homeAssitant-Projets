@@ -1,0 +1,28 @@
+# dashboard_card.yaml
+# Exemple de carte Mushroom Template pour le tableau de bord
+
+type: custom:mushroom-template-card
+entity: sensor.water_quality
+primary: "Qualité de l'eau : {{ state_attr('sensor.water_quality', 'commune_name') }}"
+secondary: >-
+  {% set date_str = state_attr('sensor.water_quality', 'sampling_date') %}
+  Prélèvement le {{ as_timestamp(date_str) | timestamp_custom('%d/%m/%Y', true) if date_str else 'Inconnu' }}
+  
+  🪨 Calcaire: {{ state_attr('sensor.water_quality', 'hardness') | default('?', true) }} | 🍼 Nitrates: {{ state_attr('sensor.water_quality', 'nitrates') | default('?', true) }} | 🧪 pH: {{ state_attr('sensor.water_quality', 'ph') | default('?', true) }}
+  
+  {{ state_attr('sensor.water_quality', 'conclusion') }}
+icon: >-
+  {% if is_state('sensor.water_quality', 'Compliant') %}
+    mdi:water-check
+  {% else %}
+    mdi:water-alert
+  {% endif %}
+icon_color: >-
+  {% if is_state('sensor.water_quality', 'Compliant') %}
+    green
+  {% else %}
+    red
+  {% endif %}
+multiline_secondary: true
+tap_action:
+  action: more-info

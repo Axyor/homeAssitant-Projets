@@ -1,0 +1,30 @@
+# ha_config.yaml
+# Ajouter ce code dans votre configuration.yaml (ou vos fichiers splittés)
+
+command_line:
+  - sensor:
+      name: "Water Quality"
+      # Remplacez /config/eau_qualite/eau_qualite_script.py par le chemin exact si votre configuration diffère
+      # Remplacez 59328 par le code INSEE de votre commune
+      command: "python3 /config/eau_qualite/eau_qualite_script.py --commune 59328"
+      scan_interval: 2592000  # Mise à jour une fois par mois
+      command_timeout: 30
+      value_template: >
+        {% if value_json.compliant %}
+          Compliant
+        {% else %}
+          Non Compliant
+        {% endif %}
+      json_attributes:
+        - sampling_date
+        - commune_name
+        - conclusion
+        - network
+        - bact_compliance
+        - pc_compliance
+        - hardness
+        - nitrates
+        - ph
+        - parameters
+        - last_update
+        - error
