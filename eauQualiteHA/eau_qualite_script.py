@@ -4,10 +4,27 @@ import urllib.parse
 import json
 import datetime
 import argparse
+import logging
+import os
 
 BASE_URL = "https://hubeau.eaufrance.fr/api/v1/qualite_eau_potable/resultats_dis"
 
+def setup_logging():
+    # Setup logging to file in the same directory as the script
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    log_file = os.path.join(script_dir, "eau_qualite.log")
+    
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        handlers=[
+            logging.FileHandler(log_file, encoding='utf-8'),
+            logging.StreamHandler()
+        ]
+    )
+
 def fetch_water_quality(commune_code):
+    logging.info(f"Starting water quality fetch for commune {commune_code}")
     try:
         # Request 1: Get ONLY the latest sample code
         params_latest = urllib.parse.urlencode({
@@ -19,11 +36,13 @@ def fetch_water_quality(commune_code):
         url_latest = f"{BASE_URL}?{params_latest}"
         req_latest = urllib.request.Request(url_latest, headers={"User-Agent": "HomeAssistant-EauQualite-Integration/1.1"})
         
+        logging.info("Fetching latest sample ID...")
         with urllib.request.urlopen(req_latest, timeout=20) as response_latest:
             raw_data_latest = json.loads(response_latest.read().decode())
             results_latest = raw_data_latest.get("data", [])
             
             if not results_latest:
+                logging.warning("No data found for this municipality.")
                 return {
                     "compliant": False, 
                     "error": "No data found for this municipality.",
@@ -37,6 +56,7 @@ def fetch_water_quality(commune_code):
             
             latest_code = results_latest[0].get("code_prelevement")
             if latest_code is None:
+                logging.error("Missing sample code in the returned data.")
                 return {
                     "compliant": False, 
                     "error": "Missing sample code in data.",
@@ -47,9 +67,9 @@ def fetch_water_quality(commune_code):
                     "ph": "N/A",
                     "parameters": []
                 }
+            logging.info(f"Found latest sample ID: {latest_code}")
                 
         # Request 2: Fetch ALL parameters for this precise sample
-        # We set size=100 just in case there are many parameters for one sample
         params_all = urllib.parse.urlencode({
             "code_commune": commune_code,
             "code_prelevement": latest_code,
@@ -58,11 +78,13 @@ def fetch_water_quality(commune_code):
         url_all = f"{BASE_URL}?{params_all}"
         req_all = urllib.request.Request(url_all, headers={"User-Agent": "HomeAssistant-EauQualite-Integration/1.1"})
         
+        logging.info(f"Fetching all parameters for sample ID {latest_code}...")
         with urllib.request.urlopen(req_all, timeout=20) as response_all:
             raw_data_all = json.loads(response_all.read().decode())
             latest_tests = raw_data_all.get("data", [])
             
             if not latest_tests:
+                logging.error("No test parameters returned for the found sample ID.")
                 return {
                     "compliant": False, 
                     "error": "Analysis parameters problem.",
@@ -139,6 +161,8 @@ def fetch_water_quality(commune_code):
             pc = info.get("conformite_limites_pc_prelevement")
             pc = str(pc) if pc is not None else "N/A"
             
+            logging.info(f"Successfully fetched {len(parameters)} parameters for {commune_name}. Compliant: {is_compliant}")
+            
             return {
                 "compliant": is_compliant,
                 "sampling_date": latest_date,
@@ -155,6 +179,7 @@ def fetch_water_quality(commune_code):
             }
             
     except Exception as e:
+         logging.error(f"Critical error during fetch: {str(e)}", exc_info=True)
          return {
              "compliant": False,
              "conclusion": "Error",
@@ -171,5 +196,8 @@ if __name__ == "__main__":
     parser.add_argument("--commune", required=True, help="INSEE code of the municipality (e.g., 59328)")
     args = parser.parse_args()
     
+    setup_logging()
     result = fetch_water_quality(args.commune)
+    # Output solely the JSON to stdout so Home Assistant can parse it
+    # We disabled stdout logging specifically to not corrupt JSON, but logging.info goes to stderr/file.
     print(json.dumps(result, ensure_ascii=False, indent=2))
