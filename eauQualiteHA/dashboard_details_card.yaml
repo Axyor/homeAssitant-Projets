@@ -1,32 +1,13 @@
-# dashboard_details_card.yaml
-# Exemple de carte Markdown pour afficher les résultats détaillés
-
 type: markdown
-title: Résultats de l'analyse d'eau
 content: >-
-  <table width="100%">
-    <thead>
-      <tr>
-        <th align="left">Paramètre</th>
-        <th align="right">Valeur</th>
-        <th align="right">Référence</th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for param in state_attr('sensor.water_quality', 'parameters') %}
-      <tr>
-        <td align="left">{{ param.name }}</td>
-        <td align="right"><strong>{{ param.value }}</strong> {{ param.unit }}</td>
-        <td align="right">
-          <small>
-            {% if param.reference and param.reference != 'N/A' %}
-              {{ param.reference }}
-            {% else %}
-              -
-            {% endif %}
-          </small>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  ### 🔬 Résultats détaillés
+
+
+  | Paramètre | Valeur | Référence |
+
+  | :--- | ---: | ---: |{% for param in state_attr('sensor.water_quality',
+  'parameters') %}
+
+  | {{ param.name }} | **{{ param.value }}** {% if param.unit and param.unit !=
+  'SANS OBJET' %}{{ param.unit }}{% endif %} | {{ param.reference if
+  param.reference and param.reference != 'N/A' else '-' }} |{% endfor %}
