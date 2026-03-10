@@ -13,7 +13,7 @@ Ce projet permet d'afficher la qualité de l'eau potable de votre commune direct
 Home Assistant utilise par défaut un environnement Python capable d'exécuter des scripts simples. 
 - Allez dans le dossier racine de votre configuration Home Assistant (souvent `/config` ou `\homeassistant`).
 - Créez un dossier dédié nommé `eau_qualite`.
-- Placez-y le fichier `eau_qualite_script.py` tel quel. Le chemin complet devrait donc être : `/config/eau_qualite/eau_qualite_script.py`.
+- Placez-y le fichier `eau_qualite_script.py` tel quel. Le chemin complet devrait donc être : `/config/eauQualiteHA/eau_qualite_script.py`.
 
 ### 2. Configuration du capteur (Sensor)
 Pour intégrer les données collectées par le script, vous devez déclarer un capteur en ligne de commande.
