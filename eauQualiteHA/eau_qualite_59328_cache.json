@@ -1,0 +1,124 @@
+{
+  "compliant": true,
+  "sampling_date": "2025-12-29T11:46:00Z",
+  "sample_code": "05900338890",
+  "commune_name": "LAMBERSART",
+  "conclusion": "Eau d'alimentation conforme aux exigences de qualité en vigueur pour l'ensemble des paramètres mesurés.",
+  "network": "MÉTROPOLE EUROPÉENNE LILLE - ILÉO",
+  "bact_compliance": "C",
+  "pc_compliance": "C",
+  "hardness": "N/A",
+  "nitrates": "N/A",
+  "ph": "7,4 unité pH",
+  "parameters": [
+    {
+      "name": "Ammonium (en NH4)",
+      "value": "<0,05",
+      "unit": "mg/L",
+      "reference": "<=0,1 mg/L"
+    },
+    {
+      "name": "Aspect (qualitatif)",
+      "value": "Aspect normal",
+      "unit": "SANS OBJET",
+      "reference": "N/A"
+    },
+    {
+      "name": "Bact. aér. revivifiables à 22°-68h",
+      "value": "<1",
+      "unit": "n/mL",
+      "reference": "N/A"
+    },
+    {
+      "name": "Bact. aér. revivifiables à 36°-44h",
+      "value": "<1",
+      "unit": "n/mL",
+      "reference": "N/A"
+    },
+    {
+      "name": "Bact. et spores sulfito-rédu./100ml",
+      "value": "<1",
+      "unit": "n/(100mL)",
+      "reference": "<=0 n/(100mL)"
+    },
+    {
+      "name": "Bactéries coliformes /100ml-MS",
+      "value": "<1",
+      "unit": "n/(100mL)",
+      "reference": "<=0 n/(100mL)"
+    },
+    {
+      "name": "Chlore libre",
+      "value": "0,14",
+      "unit": "mg(Cl2)/L",
+      "reference": "N/A"
+    },
+    {
+      "name": "Chlore total",
+      "value": "0,20",
+      "unit": "mg(Cl2)/L",
+      "reference": "N/A"
+    },
+    {
+      "name": "Coloration",
+      "value": "<5",
+      "unit": "mg(Pt)/L",
+      "reference": "<=15 mg(Pt)/L"
+    },
+    {
+      "name": "Conductivité à 25°C",
+      "value": "992",
+      "unit": "µS/cm",
+      "reference": ">=200 et <=1100 µS/cm"
+    },
+    {
+      "name": "Couleur (qualitatif)",
+      "value": "Aucun changement anormal",
+      "unit": "SANS OBJET",
+      "reference": "N/A"
+    },
+    {
+      "name": "Entérocoques /100ml-MS",
+      "value": "<1",
+      "unit": "n/(100mL)",
+      "reference": "<=0 n/(100mL)"
+    },
+    {
+      "name": "Escherichia coli /100ml - MF",
+      "value": "<1",
+      "unit": "n/(100mL)",
+      "reference": "<=0 n/(100mL)"
+    },
+    {
+      "name": "Odeur (qualitatif)",
+      "value": "Aucun changement anormal",
+      "unit": "SANS OBJET",
+      "reference": "N/A"
+    },
+    {
+      "name": "Saveur (qualitatif)",
+      "value": "Aucun changement anormal",
+      "unit": "SANS OBJET",
+      "reference": "N/A"
+    },
+    {
+      "name": "Température de l'eau",
+      "value": "10,5",
+      "unit": "°C",
+      "reference": "<=25 °C"
+    },
+    {
+      "name": "Turbidité néphélométrique NFU",
+      "value": "0,2",
+      "unit": "NFU",
+      "reference": "<=2 NFU"
+    },
+    {
+      "name": "pH",
+      "value": "7,4",
+      "unit": "unité pH",
+      "reference": ">=6,5 et <=9 unité pH"
+    }
+  ],
+  "last_update": "2026-03-23T22:07:19.779732"
+}

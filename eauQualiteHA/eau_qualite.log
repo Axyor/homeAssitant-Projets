@@ -1,0 +1,11 @@
+2026-03-23 22:07:19,435 [INFO] Starting water quality fetch for commune 59328
+2026-03-23 22:07:19,435 [INFO] Fetching latest sample ID...
+2026-03-23 22:07:19,690 [INFO] Found latest sample ID: 05900338890 (date: 2025-12-29T11:46:00Z)
+2026-03-23 22:07:19,691 [INFO] Fetching all parameters for sample ID 05900338890...
+2026-03-23 22:07:19,779 [INFO] Successfully fetched 18 parameters for LAMBERSART. Compliant: True
+2026-03-23 22:07:19,779 [INFO] Saved new data to cache for sample ID 05900338890
+2026-03-23 22:07:27,465 [INFO] Starting water quality fetch for commune 59328
+2026-03-23 22:07:27,465 [INFO] Loaded cache for commune 59328
+2026-03-23 22:07:27,465 [INFO] Fetching latest sample ID...
+2026-03-23 22:07:27,568 [INFO] Found latest sample ID: 05900338890 (date: 2025-12-29T11:46:00Z)
+2026-03-23 22:07:27,568 [INFO] Data for sample ID 05900338890 is already cached. Skipping second API call.

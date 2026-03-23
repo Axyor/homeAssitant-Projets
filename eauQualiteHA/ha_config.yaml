@@ -17,6 +17,7 @@ command_line:
         {% endif %}
       json_attributes:
         - sampling_date
+        - sample_code
         - commune_name
         - conclusion
         - network

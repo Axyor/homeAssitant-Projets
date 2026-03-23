@@ -28,6 +28,19 @@ def setup_logging():
 
 def fetch_water_quality(commune_code):
     logging.info(f"Starting water quality fetch for commune {commune_code}")
+    
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    cache_file = os.path.join(script_dir, f"eau_qualite_{commune_code}_cache.json")
+    cached_data = None
+    
+    try:
+        if os.path.exists(cache_file):
+            with open(cache_file, "r", encoding="utf-8") as f:
+                cached_data = json.load(f)
+                logging.info(f"Loaded cache for commune {commune_code}")
+    except Exception as e:
+        logging.warning(f"Failed to read cache: {e}")
+
     try:
         # Request 1: Get ONLY the latest sample code
         params_latest = urllib.parse.urlencode({
@@ -58,6 +71,8 @@ def fetch_water_quality(commune_code):
                 }
             
             latest_code = results_latest[0].get("code_prelevement")
+            latest_date_str = results_latest[0].get("date_prelevement")
+            
             if latest_code is None:
                 logging.error("Missing sample code in the returned data.")
                 return {
@@ -70,7 +85,11 @@ def fetch_water_quality(commune_code):
                     "ph": "N/A",
                     "parameters": []
                 }
-            logging.info(f"Found latest sample ID: {latest_code}")
+            logging.info(f"Found latest sample ID: {latest_code} (date: {latest_date_str})")
+            
+            if cached_data and cached_data.get("sample_code") == latest_code:
+                logging.info(f"Data for sample ID {latest_code} is already cached. Skipping second API call.")
+                return cached_data
                 
         # Request 2: Fetch ALL parameters for this precise sample
         params_all = urllib.parse.urlencode({
@@ -166,9 +185,10 @@ def fetch_water_quality(commune_code):
             
             logging.info(f"Successfully fetched {len(parameters)} parameters for {commune_name}. Compliant: {is_compliant}")
             
-            return {
+            result_data = {
                 "compliant": is_compliant,
                 "sampling_date": latest_date,
+                "sample_code": latest_code,
                 "commune_name": commune_name,
                 "conclusion": conclusion,
                 "network": network,
@@ -180,6 +200,15 @@ def fetch_water_quality(commune_code):
                 "parameters": parameters,
                 "last_update": datetime.datetime.now().isoformat()
             }
+            
+            try:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    json.dump(result_data, f, ensure_ascii=False, indent=2)
+                logging.info(f"Saved new data to cache for sample ID {latest_code}")
+            except Exception as e:
+                logging.error(f"Failed to save cache file: {e}")
+                
+            return result_data
             
     except Exception as e:
          logging.error(f"Critical error during fetch: {str(e)}", exc_info=True)
