@@ -137,10 +137,11 @@ Ajoutez dans `automations.yaml` (voir `ha_config_v2.yaml` pour le code complet) 
 
 ## 📁 Fichiers générés automatiquement
 
-| Fichier            | Rôle                                           |
-| ------------------ | ---------------------------------------------- |
+| Fichier | Rôle |
+| --- | --- |
 | `rappels_vus.json` | Cache des rappels déjà notifiés (auto-nettoyé) |
-| `rappel.log`       | Logs du script (diagnostic)                    |
+| `rappel_data_cache.json` | Dernier output complet — source de secours si l'API est indisponible |
+| `rappel.log` | Logs du script (diagnostic) |
 
 Pour le debug en ligne de commande :
 
@@ -154,3 +155,24 @@ python3 rappel_script.py --verbose
 
 1. **Outils de développement** > **YAML** > **Vérifier la configuration**
 2. Si OK, redémarrez HA ou rechargez les entités "Command Line"
+
+## Résilience & comportement hors-ligne
+
+Le script tente jusqu'à **3 fois** d'appeler l'API RappelConso (délai de 5 s entre chaque essai) avant de passer en mode dégradé.
+
+| Type d'erreur | Comportement |
+|---|---|
+| Timeout, réseau coupé (`URLError`) | Retry |
+| Erreur serveur 5xx | Retry |
+| Erreur client 4xx | Pas de retry |
+| Réponse JSON invalide | Retry |
+
+En cas d'échec total, le capteur retourne les **dernières données issues du cache** (`rappel_data_cache.json`), enrichies de :
+
+| Attribut | Type | Description |
+|---|---|---|
+| `stale` | `bool` | `true` si les données proviennent du cache de secours |
+| `stale_since` | `string` (ISO 8601) | Horodatage du premier échec ayant déclenché le mode dégradé |
+| `new_count` | `int` | Toujours `0` en mode stale (pas de re-notification) |
+
+Si aucun cache n'est disponible (première exécution), le capteur retourne une erreur classique avec `stale: false`.

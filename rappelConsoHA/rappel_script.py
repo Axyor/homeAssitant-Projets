@@ -5,12 +5,14 @@ import json
 import datetime
 import sys
 import os
+import time
 import logging
 from logging.handlers import RotatingFileHandler
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 KEYWORDS_FILE = os.path.join(SCRIPT_DIR, "mots_cles.txt")
 CACHE_FILE = os.path.join(SCRIPT_DIR, "rappels_vus.json")
+DATA_CACHE_FILE = os.path.join(SCRIPT_DIR, "rappel_data_cache.json")
 LOG_FILE = os.path.join(SCRIPT_DIR, "rappel.log")
 
 BASE_URL = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/rappelconso-v2-gtin-trie/records"
@@ -55,6 +57,23 @@ def save_cache(cache):
     except IOError as e:
         logger.error(f"Unable to save cache: {e}")
 
+def load_data_cache():
+    if not os.path.exists(DATA_CACHE_FILE):
+        return None
+    try:
+        with open(DATA_CACHE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, IOError):
+        logger.warning("Corrupted data cache, ignoring.")
+        return None
+
+def save_data_cache(output):
+    try:
+        with open(DATA_CACHE_FILE, "w", encoding="utf-8") as f:
+            json.dump(output, f, ensure_ascii=False, indent=2)
+    except IOError as e:
+        logger.error(f"Unable to save data cache: {e}")
+
 def update_cache(cache, results):
     cutoff = (datetime.date.today() - datetime.timedelta(days=DAYS_BACK * 2)).isoformat()
 
@@ -78,29 +97,20 @@ def update_cache(cache, results):
 
 
 def get_config(filepath):
-    """Parse le fichier mots-clés avec sections [distributeurs], [produits], [surveillance].
-
-    Format:
-        [distributeurs]    -> magasins fréquentés (filtrage AND avec produits)
-        [surveillance]     -> produits critiques, jamais filtrés par distributeur
-        [produits]         -> produits courants, filtrés par distributeurs
-
-    Rétro-compatible : sans sections, tout va dans 'produits' (pas de filtrage distributeur).
-    """
+    """Parse le fichier mots-clés avec sections [distributeurs], [produits], [surveillance]."""
     config = {"distributeurs": [], "produits": [], "surveillance": []}
 
     if not os.path.exists(filepath):
         logger.error(f"Keywords file not found: {filepath}")
         return config
 
-    current_section = "produits"  # section par défaut (rétro-compatibilité)
+    current_section = "produits"
 
     with open(filepath, "r", encoding="utf-8") as f:
         for line in f:
             stripped = line.strip()
             if not stripped or stripped.startswith("#"):
                 continue
-            # Détection de section
             if stripped.startswith("[") and stripped.endswith("]"):
                 section_name = stripped[1:-1].strip().lower()
                 if section_name in config:
@@ -116,7 +126,6 @@ def get_config(filepath):
 
 
 def _search_clause(keyword):
-    """Construit une clause de recherche multi-champs pour un mot-clé."""
     return (
         f"(search(libelle, \"{keyword}\") OR "
         f"search(sous_categorie_produit, \"{keyword}\") OR "
@@ -138,7 +147,6 @@ def build_query(config, days_back):
 
     blocks = []
 
-    # Bloc produits × distributeurs (filtrage croisé)
     if produits:
         produit_clauses = [_search_clause(kw) for kw in produits]
         produit_block = " OR ".join(produit_clauses)
@@ -150,7 +158,6 @@ def build_query(config, days_back):
         else:
             blocks.append(f"({produit_block})")
 
-    # Bloc surveillance (jamais filtré par distributeur)
     if surveillance:
         surv_clauses = [_search_clause(kw) for kw in surveillance]
         surv_block = " OR ".join(surv_clauses)
@@ -166,7 +173,8 @@ def fetch_recalls():
     config = get_config(KEYWORDS_FILE)
     all_keywords = config["produits"] + config["surveillance"]
     if not all_keywords:
-        return {"error": "No keywords defined", "count": 0, "new_count": 0, "data": [], "nouveaux": []}
+        return {"error": "No keywords defined", "count": 0, "new_count": 0,
+                "data": [], "nouveaux": [], "stale": False}
 
     where_clause = build_query(config, DAYS_BACK)
 
@@ -184,80 +192,105 @@ def fetch_recalls():
         "User-Agent": "HomeAssistant-RappelConso-Integration/2.0"
     })
 
-    try:
-        with urllib.request.urlopen(req, timeout=20) as response:
-            raw_data = json.loads(response.read().decode())
-            results = raw_data.get("results", [])
-            logger.info(f"API OK: {raw_data.get('total_count', 0)} results found")
+    last_error = None
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(req, timeout=20) as response:
+                raw_data = json.loads(response.read().decode())
+                results = raw_data.get("results", [])
+                logger.info(f"API OK: {raw_data.get('total_count', 0)} results found")
 
-            data = [
-                {
-                    "titre": r.get("libelle"),
-                    "marque": r.get("marque_produit"),
-                    "motif": r.get("motif_rappel"),
-                    "date": r.get("date_publication"),
-                    "url": r.get("lien_vers_la_fiche_rappel"),
-                    "image_url": r.get("liens_vers_les_images", "").split("|")[0] if r.get("liens_vers_les_images") else None,
-                    "risques": r.get("risques_encourus"),
-                    "description_risque": r.get("description_complementaire_risque"),
-                    "categorie": r.get("categorie_produit"),
-                    "sous_categorie": r.get("sous_categorie_produit"),
-                    "distributeurs": r.get("distributeurs"),
-                    "conduite": r.get("conduites_a_tenir_par_le_consommateur"),
-                    "numero_fiche": r.get("numero_fiche"),
-                    "preconisations": (r.get("preconisations_sanitaires") or "")[:200] or None,
+                data = [
+                    {
+                        "titre": r.get("libelle"),
+                        "marque": r.get("marque_produit"),
+                        "motif": r.get("motif_rappel"),
+                        "date": r.get("date_publication"),
+                        "url": r.get("lien_vers_la_fiche_rappel"),
+                        "image_url": r.get("liens_vers_les_images", "").split("|")[0] if r.get("liens_vers_les_images") else None,
+                        "risques": r.get("risques_encourus"),
+                        "description_risque": r.get("description_complementaire_risque"),
+                        "categorie": r.get("categorie_produit"),
+                        "sous_categorie": r.get("sous_categorie_produit"),
+                        "distributeurs": r.get("distributeurs"),
+                        "conduite": r.get("conduites_a_tenir_par_le_consommateur"),
+                        "numero_fiche": r.get("numero_fiche"),
+                        "preconisations": (r.get("preconisations_sanitaires") or "")[:200] or None,
+                    }
+                    for r in results
+                ]
+
+                seen_records = set()
+                unique_data = []
+                for d in data:
+                    record = d.get("numero_fiche", "")
+                    if record and record not in seen_records:
+                        seen_records.add(record)
+                        unique_data.append(d)
+                data = unique_data
+                logger.info(f"{len(results)} API results -> {len(data)} unique records after deduplication")
+
+                cache = load_cache()
+                new_items = update_cache(cache, data)
+                save_cache(cache)
+
+                if new_items:
+                    logger.info(f"{len(new_items)} new recall(s) detected")
+
+                output = {
+                    "count": len(data),
+                    "new_count": len(new_items),
+                    "stale": False,
+                    "last_update": datetime.datetime.now().isoformat(),
+                    "keywords_used": config["produits"],
+                    "distributeurs_used": config["distributeurs"],
+                    "surveillance_used": config["surveillance"],
+                    "data": data,
+                    "nouveaux": [
+                        {"titre": r.get("titre"), "marque": r.get("marque"),
+                         "numero_fiche": r.get("numero_fiche")}
+                        for r in new_items
+                    ],
                 }
-                for r in results
-            ]
+                save_data_cache(output)
+                return output
 
-            seen_records = set()
-            unique_data = []
-            for d in data:
-                record = d.get("numero_fiche", "")
-                if record and record not in seen_records:
-                    seen_records.add(record)
-                    unique_data.append(d)
-            data = unique_data
-            logger.info(f"{len(results)} API results -> {len(data)} unique records after deduplication")
+        except urllib.error.HTTPError as e:
+            if e.code < 500:
+                msg = f"HTTP {e.code}: {e.reason}"
+                logger.error(f"API error (not retrying): {msg}")
+                return {"error": msg, "count": 0, "new_count": 0,
+                        "data": [], "nouveaux": [], "stale": False}
+            last_error = f"HTTP {e.code}: {e.reason}"
+            logger.warning(f"Attempt {attempt + 1}/3 failed: {last_error}")
+        except urllib.error.URLError as e:
+            last_error = f"Connection failed: {e.reason}"
+            logger.warning(f"Attempt {attempt + 1}/3 failed: {last_error}")
+        except json.JSONDecodeError:
+            last_error = "Invalid API response (not JSON)"
+            logger.warning(f"Attempt {attempt + 1}/3 failed: {last_error}")
+        except Exception as e:
+            last_error = f"Unexpected error: {str(e)}"
+            logger.error(last_error)
+            break
 
-            cache = load_cache()
-            new_items = update_cache(cache, data)
-            save_cache(cache)
+        if attempt < 2:
+            logger.info("Retrying in 5s...")
+            time.sleep(5)
 
-            if new_items:
-                logger.info(f"{len(new_items)} new recall(s) detected")
+    cached_output = load_data_cache()
+    if cached_output:
+        logger.warning(f"All attempts failed, returning stale data. Last error: {last_error}")
+        stale_output = dict(cached_output)
+        stale_output["stale"] = True
+        stale_output["stale_since"] = datetime.datetime.now().isoformat()
+        stale_output["new_count"] = 0
+        stale_output["nouveaux"] = []
+        return stale_output
 
-            output = {
-                "count": len(data),
-                "new_count": len(new_items),
-                "last_update": datetime.datetime.now().isoformat(),
-                "keywords_used": config["produits"],
-                "distributeurs_used": config["distributeurs"],
-                "surveillance_used": config["surveillance"],
-                "data": data,
-                "nouveaux": [
-                    {"titre": r.get("titre"), "marque": r.get("marque"), "numero_fiche": r.get("numero_fiche")}
-                    for r in new_items
-                ],
-            }
-            return output
-
-    except urllib.error.HTTPError as e:
-        msg = f"HTTP {e.code}: {e.reason}"
-        logger.error(f"API error: {msg}")
-        return {"error": msg, "count": 0, "new_count": 0, "data": [], "nouveaux": []}
-    except urllib.error.URLError as e:
-        msg = f"Connection failed: {e.reason}"
-        logger.error(f"Network error: {msg}")
-        return {"error": msg, "count": 0, "new_count": 0, "data": [], "nouveaux": []}
-    except json.JSONDecodeError:
-        msg = "Invalid API response (not JSON)"
-        logger.error(msg)
-        return {"error": msg, "count": 0, "new_count": 0, "data": [], "nouveaux": []}
-    except Exception as e:
-        msg = f"Unexpected error: {str(e)}"
-        logger.error(msg)
-        return {"error": msg, "count": 0, "new_count": 0, "data": [], "nouveaux": []}
+    logger.error(f"All attempts failed, no data cache available. Last error: {last_error}")
+    return {"error": last_error, "count": 0, "new_count": 0,
+            "data": [], "nouveaux": [], "stale": False}
 
 
 if __name__ == "__main__":
